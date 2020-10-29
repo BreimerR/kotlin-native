@@ -25,6 +25,14 @@ struct InitNode;
 extern "C" {
 #endif
 
+// Must match DestroyRuntimeMode in DestroyRuntimeMode.kt
+enum DestroyRuntimeMode {
+    DESTROY_RUNTIME_LEGACY = 0,
+    DESTROY_RUNTIME_ON_SHUTDOWN = 1,
+};
+
+extern const DestroyRuntimeMode Kotlin_destroyRuntimeMode;
+
 void Kotlin_initRuntimeIfNeeded();
 void Kotlin_deinitRuntimeIfNeeded();
 

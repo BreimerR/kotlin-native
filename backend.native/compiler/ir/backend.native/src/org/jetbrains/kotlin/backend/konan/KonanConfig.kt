@@ -45,6 +45,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
             ?: target.family.isAppleFamily // Default is true for Apple targets.
 
     val memoryModel: MemoryModel get() = configuration.get(KonanConfigKeys.MEMORY_MODEL)!!
+    val destroyRuntimeMode: DestroyRuntimeMode get() = configuration.get(KonanConfigKeys.DESTROY_RUNTIME_MODE)!!
 
     val needCompilerVerification: Boolean
         get() = configuration.get(KonanConfigKeys.VERIFY_COMPILER) ?:
@@ -127,6 +128,10 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                 } else if (!target.supportsThreads()) {
                     configuration.report(CompilerMessageSeverity.STRONG_WARNING,
                             "Experimental memory model requires threads, which are not supported on target ${target.name}. Used strict memory model.")
+                    MemoryModel.STRICT
+                } else if (destroyRuntimeMode != DestroyRuntimeMode.ON_SHUTDOWN) {
+                    configuration.report(CompilerMessageSeverity.STRONG_WARNING,
+                            "Experimental memory model requires destroy runtime mode 'on-shutdown'. Used strict memory model.")
                     MemoryModel.STRICT
                 } else {
                     MemoryModel.EXPERIMENTAL

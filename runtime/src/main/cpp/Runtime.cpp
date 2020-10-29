@@ -119,9 +119,17 @@ RuntimeState* initRuntime() {
   if (!result) return kInvalidRuntime;
   RuntimeCheck(!isValidRuntime(), "No active runtimes allowed");
   ::runtimeState = result;
-  result->memoryState = InitMemory();
+  bool firstRuntime = lastStatus == kGlobalRuntimeUninitialized;
+  result->memoryState = InitMemory(firstRuntime); // The argument will be ignored for legacy DestroyRuntimeMode
   result->worker = WorkerInit(true);
-  bool firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
+  switch (Kotlin_destroyRuntimeMode) {
+    case DESTROY_RUNTIME_LEGACY:
+      firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
+      break;
+    case DESTROY_RUNTIME_ON_SHUTDOWN:
+      atomicAdd(&aliveRuntimesCount, 1)
+      break;
+  }
   // Keep global variables in state as well.
   if (firstRuntime) {
     konan::consoleInit();
@@ -136,25 +144,33 @@ RuntimeState* initRuntime() {
   return result;
 }
 
-void deinitRuntime(RuntimeState* state) {
+void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
   RuntimeAssert(state->status == RuntimeStatus::kRunning, "Runtime must be in the running state");
   state->status = RuntimeStatus::kDestroying;
   // This may be called after TLS is zeroed out, so ::memoryState in Memory cannot be trusted.
   RestoreMemory(state->memoryState);
   bool lastRuntime = atomicAdd(&aliveRuntimesCount, -1) == 0;
+  switch (Kotlin_destroyRuntimeMode) {
+    case DESTROY_RUNTIME_LEGACY:
+      destroyRuntime = lastRuntime;
+      break;
+    case DESTROY_RUNTIME_ON_SHUTDOWN:
+      // Nothing to do.
+      break;
+  }
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, state->memoryState);
-  if (lastRuntime)
+  if (destroyRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
   auto workerId = GetWorkerId(state->worker);
   WorkerDeinit(state->worker);
-  DeinitMemory(state->memoryState);
+  DeinitMemory(state->memoryState, destroyRuntime);
   konanDestructInstance(state);
   WorkerDestroyThreadDataIfNeeded(workerId);
 }
 
 void Kotlin_deinitRuntimeCallback(void* argument) {
   auto* state = reinterpret_cast<RuntimeState*>(argument);
-  deinitRuntime(state);
+  deinitRuntime(state, false);
 }
 
 }  // namespace
@@ -181,7 +197,7 @@ void Kotlin_initRuntimeIfNeeded() {
 
 void Kotlin_deinitRuntimeIfNeeded() {
   if (isValidRuntime()) {
-    deinitRuntime(::runtimeState);
+    deinitRuntime(::runtimeState, false);
     ::runtimeState = kInvalidRuntime;
   }
 }
@@ -239,7 +255,7 @@ void Kotlin_shutdownRuntime() {
         }
     }
 
-    deinitRuntime(runtime);
+    deinitRuntime(runtime, true);
     ::runtimeState = kInvalidRuntime;
 }
 

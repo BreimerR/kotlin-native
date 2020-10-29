@@ -362,7 +362,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             codegen.objCDataGenerator?.finishModule()
 
             context.coverage.writeRegionInfo()
-            appendDebugSelector()
+            appendCompilerGlobals()
             appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
             appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
             if (context.isNativeLibrary) {
@@ -2378,13 +2378,17 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         LLVMSetSection(llvmUsedGlobal.llvmGlobal, "llvm.metadata")
     }
 
-    private fun appendDebugSelector() {
+    private fun appendGlobal(name: String, value: ConstValue) {
+        val constant = context.llvm.staticData.placeGlobal(name, value)
+        constant.setConstant(true)
+        constant.setLinkage(LLVMLinkage.LLVMExternalLinkage)
+    }
+
+    private fun appendCompilerGlobals() {
         if (!context.producedLlvmModuleContainsStdlib) return
-        val llvmDebugSelector =
-                context.llvm.staticData.placeGlobal("KonanNeedDebugInfo",
-                        Int32(if (context.shouldContainDebugInfo()) 1 else 0))
-        llvmDebugSelector.setConstant(true)
-        llvmDebugSelector.setLinkage(LLVMLinkage.LLVMExternalLinkage)
+
+        appendGlobal("KonanNeedDebugInfo", Int32(if (context.shouldContainDebugInfo()) 1 else 0))
+        appendGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value))
     }
 
     //-------------------------------------------------------------------------//
