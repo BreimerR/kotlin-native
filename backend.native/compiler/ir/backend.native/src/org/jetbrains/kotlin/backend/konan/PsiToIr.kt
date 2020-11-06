@@ -166,10 +166,6 @@ internal fun Context.psiToIr(
             expectDescriptorToSymbol = if (expectActualLinker) expectDescriptorToSymbol else null
     )
 
-    val originalBindingContext = bindingContext as? CleanableBindingContext
-            ?: error("BindingContext should be cleanable in K/N IR to avoid leaking memory: $bindingContext")
-    originalBindingContext.clear()
-
     irDeserializer.postProcess()
 
     // Enable lazy IR genration for newly-created symbols inside BE
@@ -199,4 +195,10 @@ internal fun Context.psiToIr(
         internalAbi.init(irModules.values + irModule!!)
         functionIrClassFactory.module = (modules.values + irModule!!).single { it.descriptor.isNativeStdlib() }
     }
+
+    val originalBindingContext = bindingContext as? CleanableBindingContext
+            ?: error("BindingContext should be cleanable in K/N IR to avoid leaking memory: $bindingContext")
+    originalBindingContext.clear()
+
+    this.bindingContext = BindingContext.EMPTY
 }
