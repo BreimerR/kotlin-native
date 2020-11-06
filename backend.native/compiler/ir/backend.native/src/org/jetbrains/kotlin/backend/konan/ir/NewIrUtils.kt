@@ -122,7 +122,7 @@ val IrDeclaration.konanLibrary: KotlinLibrary? get() {
         is IrFile -> parent.konanLibrary
         is IrPackageFragment -> parent.packageFragmentDescriptor.containingDeclaration.konanLibrary
         is IrDeclaration -> parent.konanLibrary
-        else -> TODO("Unexpected declaration parent")
+        else -> TODO("Unexpected declaration parent: $parent")
     }
     if (this is IrMetadataSourceOwner && this !is IrLazyDeclarationBase)
         metadata = KonanMetadata(metadata?.name, result)
