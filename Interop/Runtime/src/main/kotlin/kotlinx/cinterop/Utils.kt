@@ -403,6 +403,7 @@ private object EmptyCString: CValues<ByteVar>() {
         return placement
     }
     override fun place(placement: CPointer<ByteVar>): CPointer<ByteVar> {
+        placement[0] = 0.toByte()
         return placement
     }
 }
